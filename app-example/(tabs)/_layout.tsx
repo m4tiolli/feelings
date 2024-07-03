@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
+
 import { TabBarIcon } from '@/components/navigation/TabBarIcon';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -12,12 +13,6 @@ export default function TabLayout() {
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
-        tabBarActiveBackgroundColor: colorScheme == 'light' ? "#fff" : "#1c1c1c",
-        tabBarInactiveBackgroundColor: colorScheme == 'light' ? "#fff" : "#1c1c1c",
-        tabBarLabelStyle: {
-          fontFamily: "PlusJakartaSans_500Medium"
-        }
-        
       }}>
       <Tabs.Screen
         name="index"
@@ -29,11 +24,11 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="emergency"
+        name="explore"
         options={{
-          title: 'Emergência',
+          title: 'Explore',
           tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name={focused ? 'heart' : 'heart-outline'} color={color} />
+            <TabBarIcon name={focused ? 'code-slash' : 'code-slash-outline'} color={color} />
           ),
         }}
       />

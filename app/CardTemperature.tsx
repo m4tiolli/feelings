@@ -1,12 +1,41 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useState } from "react";
-import { TouchableOpacity, Text, Image, View, Platform } from "react-native";
+import { TouchableOpacity, Text, Image, View } from "react-native";
 import { useThemeColor } from "@/hooks/useThemeColor";
-import { Geolocation as geo, getTemperature } from "@/components/fetchWeather";
 import * as Location from "expo-location";
+import axios from "axios";
+import { Spinner } from "native-base";
+
+type Values = {
+  time: string;
+  values: {
+    cloudBase: number;
+    cloudCeiling: number;
+    cloudCover: number;
+    dewPoint: number;
+    freezingRainIntensity: number;
+    humidity: number;
+    precipitationProbability: number;
+    pressureSurfaceLevel: number;
+    rainIntensity: number;
+    sleetIntensity: number;
+    snowIntensity: number;
+    temperature: number;
+    temperatureApparent: number;
+    uvHealthConcern: number;
+    uvIndex: number;
+    visibility: number;
+    weatherCode: number;
+    windDirection: number;
+    windGust: number;
+    windSpeed: number;
+  };
+};
 
 export default function CardTemperature() {
+  const API_KEY = "Ndhv8kSgd1OD7FweIZBs13Pc0Aqkwwo8";
   const [date, setDate] = useState<any>("");
+  const [values, setValues] = useState<Values>();
   const data = new Date();
   setInterval(() => {
     setDate(
@@ -16,31 +45,34 @@ export default function CardTemperature() {
     );
   }, 1000);
 
-  const [location, setLocation] = useState<any>(null);
   const [errorMsg, setErrorMsg] = useState<any>(null);
-  const [x, setX] = useState(0)
-  const [y, setY] = useState(0)
+  const [x, setX] = useState(0);
+  const [y, setY] = useState(0);
   useEffect(() => {
     (async () => {
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
-        setErrorMsg("Permission to access location was denied");
+        setErrorMsg("A permissão para acesso à localização foi negada.");
         return;
       }
       let location = await Location.getCurrentPositionAsync({});
-      setLocation(location);
-      setX(location.coords.longitude)
-      setY(location.coords.latitude)
+      setX(location.coords.longitude);
+      setY(location.coords.latitude);
     })();
   }, []);
-  let text = "Waiting..";
 
-  if (errorMsg) {
-    text = errorMsg;
-  } else if (location) {
-    let res = `${x}, ${y}`;
-    text = res
+  async function getTemperature() {
+    await axios
+      .get(
+        `https://api.tomorrow.io/v4/weather/realtime?location=${y},${x}&apikey=${API_KEY}`
+      )
+      .then((res) => {setValues(res.data.data), console.log("Api rodou")})
+      .catch((erro) => alert(erro));
   }
+
+  useEffect(() => {
+    getTemperature()
+  }, []);
 
   return (
     <TouchableOpacity
@@ -70,7 +102,7 @@ export default function CardTemperature() {
             Agora está fazendo
           </Text>
           <Text className="text-torch-900 dark:text-torch-50 text-5xl font-jakarta-semibold">
-            {text}
+            {values?.values.temperature}ºC
           </Text>
         </View>
       </LinearGradient>

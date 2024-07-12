@@ -1,10 +1,14 @@
 import { LinearGradient } from "expo-linear-gradient";
-import { useEffect, useState } from "react";
-import { TouchableOpacity, Text, Image, View } from "react-native";
+import { SetStateAction, useEffect, useState } from "react";
+import { TouchableOpacity, Text, View } from "react-native";
 import { useThemeColor } from "@/hooks/useThemeColor";
-import * as Location from "expo-location";
 import axios from "axios";
-import { Spinner } from "native-base";
+import { Image } from "expo-image";
+import * as Location from "expo-location";
+import * as Network from "expo-network";
+import * as TaskManager from "expo-task-manager";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getImage } from "@/assets/images/png/export";
 
 type Values = {
   time: string;
@@ -32,47 +36,134 @@ type Values = {
   };
 };
 
-export default function CardTemperature() {
+export default function CardTemperature({setHorario}: SetStateAction<string>) {
   const API_KEY = "Ndhv8kSgd1OD7FweIZBs13Pc0Aqkwwo8";
-  const [date, setDate] = useState<any>("");
-  const [values, setValues] = useState<Values>();
-  const data = new Date();
-  setInterval(() => {
-    setDate(
-      `${data.getHours() < 10 ? "0" + data.getHours() : data.getHours()}:${
-        data.getMinutes() < 10 ? "0" + data.getMinutes() : data.getMinutes()
-      }`
-    );
-  }, 1000);
+  const [date, setDate] = useState<string>("");
+  const [values, setValues] = useState<Values | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
+  const [latitude, setLatitude] = useState<number | null>(null);
 
-  const [errorMsg, setErrorMsg] = useState<any>(null);
-  const [x, setX] = useState(0);
-  const [y, setY] = useState(0);
   useEffect(() => {
-    (async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        setErrorMsg("A permissão para acesso à localização foi negada.");
-        return;
+    const intervalId = setInterval(() => {
+      const newData = new Date();
+      const formattedDate = `${
+        newData.getHours() < 10 ? "0" + newData.getHours() : newData.getHours()
+      }:${
+        newData.getMinutes() < 10
+          ? "0" + newData.getMinutes()
+          : newData.getMinutes()
+      }:${
+        newData.getSeconds() < 10
+          ? "0" + newData.getSeconds()
+          : newData.getSeconds()
+      }`;
+      setDate(formattedDate);
+    }, 1000);
+
+    return () => clearInterval(intervalId);
+  }, []);
+
+  useEffect(() => {
+    const requestLocationPermission = async () => {
+      try {
+        let { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") {
+          setErrorMsg("A permissão para acesso à localização foi negada.");
+          return;
+        }
+
+        let location = await Location.getCurrentPositionAsync({});
+        setLongitude(location.coords.longitude);
+        setLatitude(location.coords.latitude);
+      } catch (error) {
+        console.error("Erro ao obter localização:", error);
+        setErrorMsg("Erro ao obter localização.");
       }
-      let location = await Location.getCurrentPositionAsync({});
-      setX(location.coords.longitude);
-      setY(location.coords.latitude);
-    })();
-  }, []);
+    };
 
-  async function getTemperature() {
-    await axios
-      .get(
-        `https://api.tomorrow.io/v4/weather/realtime?location=${y},${x}&apikey=${API_KEY}`
-      )
-      .then((res) => {setValues(res.data.data), console.log("Api rodou")})
-      .catch((erro) => alert(erro));
-  }
+    requestLocationPermission();
+  }, []);
 
   useEffect(() => {
-    getTemperature()
-  }, []);
+    const fetchData = async () => {
+      try {
+        const storedData = await getData();
+        if (!storedData || isDataExpired(storedData)) {
+          await fetchWeatherData();
+        } else {
+          setValues(storedData);
+        }
+        setHorario(values?.time)
+      } catch (error) {
+        console.error(
+          "Erro ao buscar ou armazenar dados meteorológicos:",
+          error
+        );
+        setErrorMsg("Erro ao buscar dados meteorológicos.");
+      }
+    };
+
+    fetchData();
+  }, [longitude, latitude]);
+
+  const fetchWeatherData = async () => {
+    try {
+      if (longitude !== null && latitude !== null) {
+        const response = await axios.get(
+          `https://api.tomorrow.io/v4/weather/realtime?location=${latitude},${longitude}&apikey=${API_KEY}`
+        );
+        const weatherData = response.data.data;
+        setValues(weatherData);
+        await storeData(weatherData);
+        console.log("API rodou");
+      }
+    } catch (error) {
+      console.error("Erro ao buscar dados meteorológicos:", error);
+      setErrorMsg("Erro ao buscar dados meteorológicos.");
+    }
+  };
+
+  const performBackgroundTask = () => {
+    Network.getNetworkStateAsync().then((state) => {
+      if (state.isConnected) {
+        // Código que precisa ser executado em segundo plano
+      } else {
+        console.log("Internet não está disponível");
+        TaskManager.unregisterTaskAsync("getInfos");
+      }
+    });
+  };
+
+  TaskManager.defineTask("getInfos", performBackgroundTask);
+
+  const storeData = async (value: Values) => {
+    try {
+      const jsonValue = JSON.stringify(value);
+      await AsyncStorage.setItem("WeatherData", jsonValue);
+    } catch (error) {
+      console.error("Erro ao armazenar dados meteorológicos:", error);
+    }
+  };
+
+  const getData = async () => {
+    try {
+      const jsonValue = await AsyncStorage.getItem("WeatherData");
+      return jsonValue ? JSON.parse(jsonValue) : null;
+    } catch (error) {
+      console.error("Erro ao obter dados meteorológicos:", error);
+      return null;
+    }
+  };
+
+  const isDataExpired = (storedData: Values) => {
+    // Implemente aqui a lógica para verificar se os dados estão expirados
+    // Exemplo simples: verificar se os dados foram salvos há mais de uma hora
+    const currentTime = new Date().getTime();
+    const storedTime = new Date(storedData.time).getTime();
+    return currentTime - storedTime > 60 * 60 * 1000; // 1 hora em milissegundos
+  };
+  
 
   return (
     <TouchableOpacity
@@ -90,9 +181,10 @@ export default function CardTemperature() {
         className="flex-1 w-full items-center justify-evenly rounded-md flex-row"
       >
         <Image
-          source={require("@/assets/images/4x/noite.png")}
-          resizeMode="contain"
           className="w-1/4 h-[90%] object-cover"
+          source={getImage(values?.values.weatherCode.toString() ?? '10000')}
+          contentFit="contain"
+          transition={1000}
         />
         <View className="flex items-end justify-center">
           <Text className="text-torch-900 dark:text-torch-50 text-md font-jakarta-semibold">
@@ -102,7 +194,7 @@ export default function CardTemperature() {
             Agora está fazendo
           </Text>
           <Text className="text-torch-900 dark:text-torch-50 text-5xl font-jakarta-semibold">
-            {values?.values.temperature}ºC
+            {values?.values.temperature.toFixed(0)}ºC
           </Text>
         </View>
       </LinearGradient>

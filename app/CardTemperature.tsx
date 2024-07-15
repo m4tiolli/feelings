@@ -1,5 +1,5 @@
 import { LinearGradient } from "expo-linear-gradient";
-import { SetStateAction, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { TouchableOpacity, Text, View } from "react-native";
 import { useThemeColor } from "@/hooks/useThemeColor";
 import axios from "axios";
@@ -35,14 +35,31 @@ type Values = {
     windSpeed: number;
   };
 };
+type CardTemperatureProps = Readonly<{
+  setHorario: React.Dispatch<React.SetStateAction<string>>;
+  pediuAtualizacao: boolean;
+  setPediuAtualizacao: React.Dispatch<React.SetStateAction<boolean>>;
+}>;
+// export const API_KEY = "Ndhv8kSgd1OD7FweIZBs13Pc0Aqkwwo8";
+export const API_KEY = "eRI8y8Vg4MOVUeGXNwYmOUIWuV7weqYZ";
 
-export default function CardTemperature({setHorario}: SetStateAction<string>) {
-  const API_KEY = "Ndhv8kSgd1OD7FweIZBs13Pc0Aqkwwo8";
+export default function CardTemperature({
+  setHorario,
+  pediuAtualizacao,
+  setPediuAtualizacao,
+}: CardTemperatureProps) {
   const [date, setDate] = useState<string>("");
   const [values, setValues] = useState<Values | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [latitude, setLatitude] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (pediuAtualizacao) {
+      fetchWeatherData();
+      setPediuAtualizacao(false);
+    }
+  }, [pediuAtualizacao]);
 
   useEffect(() => {
     const intervalId = setInterval(() => {
@@ -70,6 +87,7 @@ export default function CardTemperature({setHorario}: SetStateAction<string>) {
         let { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== "granted") {
           setErrorMsg("A permissão para acesso à localização foi negada.");
+          errorMsg ?? alert(errorMsg);
           return;
         }
 
@@ -94,7 +112,7 @@ export default function CardTemperature({setHorario}: SetStateAction<string>) {
         } else {
           setValues(storedData);
         }
-        setHorario(values?.time)
+        setHorario(values?.time ?? "");
       } catch (error) {
         console.error(
           "Erro ao buscar ou armazenar dados meteorológicos:",
@@ -157,13 +175,10 @@ export default function CardTemperature({setHorario}: SetStateAction<string>) {
   };
 
   const isDataExpired = (storedData: Values) => {
-    // Implemente aqui a lógica para verificar se os dados estão expirados
-    // Exemplo simples: verificar se os dados foram salvos há mais de uma hora
     const currentTime = new Date().getTime();
     const storedTime = new Date(storedData.time).getTime();
-    return currentTime - storedTime > 60 * 60 * 1000; // 1 hora em milissegundos
+    return currentTime - storedTime > 60 * 60 * 1000;
   };
-  
 
   return (
     <TouchableOpacity
@@ -182,7 +197,7 @@ export default function CardTemperature({setHorario}: SetStateAction<string>) {
       >
         <Image
           className="w-1/4 h-[90%] object-cover"
-          source={getImage(values?.values.weatherCode.toString() ?? '10000')}
+          source={getImage(values?.values.weatherCode.toString() ?? "10000")}
           contentFit="contain"
           transition={1000}
         />

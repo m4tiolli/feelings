@@ -14,6 +14,11 @@ import {
 import { SplashScreen, Stack } from "expo-router";
 import { useEffect } from "react";
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { NativeWindStyleSheet } from "nativewind";
+
+NativeWindStyleSheet.setOutput({
+  default: "native",
+});
 
 SplashScreen.preventAutoHideAsync();
 

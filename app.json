@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Feelings",
-    "slug": "Feelings",
+    "slug": "feellings",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -35,6 +35,15 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "361b6d2e-db10-4839-9dba-0250675cff53"
+      }
+    },
+    "owner": "gabrielmatiolli"
   }
 }

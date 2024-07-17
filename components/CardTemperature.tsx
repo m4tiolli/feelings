@@ -2,46 +2,12 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useState } from "react";
 import { TouchableOpacity, Text, View } from "react-native";
 import { useThemeColor } from "@/hooks/useThemeColor";
-import axios from "axios";
 import { Image } from "expo-image";
 import * as Location from "expo-location";
-import * as Network from "expo-network";
-import * as TaskManager from "expo-task-manager";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getImage } from "@/assets/images/png/export";
-
-type Values = {
-  time: string;
-  values: {
-    cloudBase: number;
-    cloudCeiling: number;
-    cloudCover: number;
-    dewPoint: number;
-    freezingRainIntensity: number;
-    humidity: number;
-    precipitationProbability: number;
-    pressureSurfaceLevel: number;
-    rainIntensity: number;
-    sleetIntensity: number;
-    snowIntensity: number;
-    temperature: number;
-    temperatureApparent: number;
-    uvHealthConcern: number;
-    uvIndex: number;
-    visibility: number;
-    weatherCode: number;
-    windDirection: number;
-    windGust: number;
-    windSpeed: number;
-  };
-};
-type CardTemperatureProps = Readonly<{
-  setHorario: React.Dispatch<React.SetStateAction<string>>;
-  pediuAtualizacao: boolean;
-  setPediuAtualizacao: React.Dispatch<React.SetStateAction<boolean>>;
-}>;
-// export const API_KEY = "Ndhv8kSgd1OD7FweIZBs13Pc0Aqkwwo8";
-export const API_KEY = "eRI8y8Vg4MOVUeGXNwYmOUIWuV7weqYZ";
+import { CardTemperatureProps, Values } from "@/constants/Types";
+import { getData, isRealtimeDataExpired } from "@/hooks/storageData";
+import { fetchRealtime } from "@/hooks/fetchData";
 
 export default function CardTemperature({
   setHorario,
@@ -53,13 +19,6 @@ export default function CardTemperature({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [latitude, setLatitude] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (pediuAtualizacao) {
-      fetchWeatherData();
-      setPediuAtualizacao(false);
-    }
-  }, [pediuAtualizacao]);
 
   useEffect(() => {
     const intervalId = setInterval(() => {
@@ -105,80 +64,41 @@ export default function CardTemperature({
 
   useEffect(() => {
     const fetchData = async () => {
-      try {
-        const storedData = await getData();
-        if (!storedData || isDataExpired(storedData)) {
-          await fetchWeatherData();
-        } else {
-          setValues(storedData);
+      if (latitude && longitude) {
+        try {
+          const storedData = await getData("Realtime");
+          const coordinates = { latitude, longitude };
+          if (!storedData || isRealtimeDataExpired(storedData)) {
+            const dados = await fetchRealtime(coordinates);
+            setValues(dados);
+          } else {
+            setValues(storedData);
+          }
+          setHorario(values?.time ?? "");
+        } catch (error) {
+          console.error(
+            "Erro ao buscar ou armazenar dados meteorológicos:",
+            error
+          );
+          setErrorMsg("Erro ao buscar dados meteorológicos.");
         }
-        setHorario(values?.time ?? "");
-      } catch (error) {
-        console.error(
-          "Erro ao buscar ou armazenar dados meteorológicos:",
-          error
-        );
-        setErrorMsg("Erro ao buscar dados meteorológicos.");
       }
     };
-
     fetchData();
   }, [longitude, latitude]);
 
-  const fetchWeatherData = async () => {
-    try {
-      if (longitude !== null && latitude !== null) {
-        const response = await axios.get(
-          `https://api.tomorrow.io/v4/weather/realtime?location=${latitude},${longitude}&apikey=${API_KEY}`
-        );
-        const weatherData = response.data.data;
-        setValues(weatherData);
-        await storeData(weatherData);
-        console.log("API rodou");
+  useEffect(() => {
+    const pediu = async () => {
+      if (pediuAtualizacao) {
+        if (latitude && longitude) {
+          const data = await fetchRealtime({ latitude, longitude });
+          setValues(data);
+          setPediuAtualizacao(false);
+        }
       }
-    } catch (error) {
-      console.error("Erro ao buscar dados meteorológicos:", error);
-      setErrorMsg("Erro ao buscar dados meteorológicos.");
-    }
-  };
-
-  const performBackgroundTask = () => {
-    Network.getNetworkStateAsync().then((state) => {
-      if (state.isConnected) {
-        // Código que precisa ser executado em segundo plano
-      } else {
-        console.log("Internet não está disponível");
-        TaskManager.unregisterTaskAsync("getInfos");
-      }
-    });
-  };
-
-  TaskManager.defineTask("getInfos", performBackgroundTask);
-
-  const storeData = async (value: Values) => {
-    try {
-      const jsonValue = JSON.stringify(value);
-      await AsyncStorage.setItem("WeatherData", jsonValue);
-    } catch (error) {
-      console.error("Erro ao armazenar dados meteorológicos:", error);
-    }
-  };
-
-  const getData = async () => {
-    try {
-      const jsonValue = await AsyncStorage.getItem("WeatherData");
-      return jsonValue ? JSON.parse(jsonValue) : null;
-    } catch (error) {
-      console.error("Erro ao obter dados meteorológicos:", error);
-      return null;
-    }
-  };
-
-  const isDataExpired = (storedData: Values) => {
-    const currentTime = new Date().getTime();
-    const storedTime = new Date(storedData.time).getTime();
-    return currentTime - storedTime > 60 * 60 * 1000;
-  };
+    };
+    pediu();
+  }, [pediuAtualizacao, latitude, longitude]);
 
   return (
     <TouchableOpacity

@@ -16,24 +16,20 @@ import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 import ptBR from "dayjs/locale/pt-br";
 import { useThemeColor } from "@/hooks/useThemeColor";
-import Option from "../Option";
-import Card from "../Card";
-
-import CardTemperature from "../CardTemperature";
+import Option from "@/components/Option";
+import Card from "@/components/Card";
+import CardTemperature from "@/components/CardTemperature";
+import { OptionType } from "@/constants/Types";
+import { respostas } from "@/constants/Respostas";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 dayjs.extend(timezone);
 dayjs.locale(ptBR);
 
-export type OptionType = {
-  id: number;
-  nome: string;
-  active: boolean;
-};
-
 const Index = () => {
   const [saudacao, setSaudacao] = useState<string>("");
+  const [resposta, setResposta] = useState("");
   const [horario, setHorario] = useState<string>("");
   const [pediuAtualizacao, setPediuAtualizacao] = useState<boolean>(false);
   const [horarioUltimaPesquisa, setHorarioUltimaPesquisa] =
@@ -125,9 +121,15 @@ const Index = () => {
     setActiveOption(active || null);
   };
 
+  const definirResposta = () => {
+    const opcao = Math.floor(Math.random() * 50) + 1;
+    const respostaSelecionada = respostas.find(resposta => resposta.id === opcao) ?? {id: 1, text: "Te amo infinitamente!"};
+    setResposta(respostaSelecionada.text);
+  }
+
   return (
     <SafeAreaView className="flex items-center justify-start flex-1 gap-4 bg-[#efefef] dark:bg-neutral-700">
-      <Text className="text-torch-900 dark:text-torch-300 text-4xl pt-4 font-jakarta-semibold">
+      <Text className="text-torch-900 dark:text-torch-300 text-4xl pt-10 font-jakarta-semibold">
         {saudacao}, meu amor!
       </Text>
       <CardTemperature
@@ -173,6 +175,13 @@ const Index = () => {
         ))}
       </ScrollView>
       {activeOption && <Card atual={activeOption} />}
+      <Text className="font-jakarta-semibold text-2xl text-torch-900 dark:text-torch-50">
+        Tenho algo pra te contar :)
+      </Text>
+      <TouchableOpacity onPress={definirResposta} className="bg-torch-300 w-[30%] flex items-center justify-center py-3 rounded-md">
+        <Text className="text-torch-50 font-jakarta-semibold text-xl">Ver</Text>
+      </TouchableOpacity>
+      <Text className="text-torch-900 dark:text-torch-50 font-jakarta-medium text-2xl w-[90%] text-center">{resposta}</Text>
     </SafeAreaView>
   );
 };

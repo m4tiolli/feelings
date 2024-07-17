@@ -1,13 +1,7 @@
-import { ReactNode } from "react";
+import { OptionProps } from "@/constants/Types";
 import { Text, TouchableOpacity } from "react-native";
 
-type Props = {
-  children: ReactNode;
-  active: boolean;
-  onclick: () => void;
-};
-
-const Option = ({ children, active, onclick }: Props) => {
+const Option = ({ children, active, onclick }: OptionProps) => {
   return (
     <TouchableOpacity
       onPress={onclick}
